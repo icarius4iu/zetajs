@@ -540,7 +540,7 @@ Module.zetajs = new Promise(function (resolve, reject) {
             new uno.com.sun.star.uno.DeploymentException(
               {Message: 'cannot get singeleton ' + name}));
         }
-        return any.val;
+        return fromAny(any);
       };
     };
     function service(name, td) {
