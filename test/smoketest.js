@@ -679,19 +679,48 @@ Module.zetajs.then(function(zetajs) {
     test.StringAttribute = 'foo';
     console.assert(test.StringAttribute === 'foo');
     {
-        const tdm = zetajs.uno.com.sun.star.beans.theIntrospection(context);
-        //...
+        const s = zetajs.uno.org.libreoffice.embindtest.theSingleton(context);
+        const v = s.getString();
+        console.assert(v === 'this is a string from XStringFactory');
     }
     {
-        const urifac = zetajs.uno.com.sun.star.uri.UriReferenceFactory.create(context);
-        //...
+        const s = zetajs.uno.org.libreoffice.embindtest.ImplicitConstructor.create(context);
+        const v = s.getArguments();
+        console.assert(v.length === 0);
     }
     {
-        const propbag = zetajs.uno.com.sun.star.beans.PropertyBag.createWithTypes(
-            context, [zetajs.type.boolean, zetajs.type.long], false, false);
-        //...
+        const s = zetajs.uno.org.libreoffice.embindtest.ExplicitConstructors.multipleArguments(
+            context, -123456, 'hä', -10.25);
+        const v = s.getArguments();
+        console.assert(v.length === 3);
+        console.assert(v[0] === -123456);
+        console.assert(v[1] === 'hä');
+        console.assert(v[2] === -10.25);
     }
-
+    {
+        const s = zetajs.uno.org.libreoffice.embindtest.ExplicitConstructors.interfaceArgument(
+            context, test);
+        const v = s.getArguments();
+        console.assert(v.length === 1);
+        console.assert(zetajs.sameUnoObject(v[0], test));
+    }
+    {
+        const s = zetajs.uno.org.libreoffice.embindtest.ExplicitConstructors.restArgument(
+            context, -123456, undefined,
+            new zetajs.Any(
+                zetajs.type.sequence(zetajs.type.enum(zetajs.uno.org.libreoffice.embindtest.Enum)),
+                [zetajs.uno.org.libreoffice.embindtest.Enum.E_2,
+                 zetajs.uno.org.libreoffice.embindtest.Enum.E3,
+                 zetajs.uno.org.libreoffice.embindtest.Enum.E_10]));;
+        const v = s.getArguments();
+        console.assert(v.length === 3);
+        console.assert(v[0] === -123456);
+        console.assert(v[1] === undefined);
+        console.assert(v[2].length === 3);
+        console.assert(v[2][0] === zetajs.uno.org.libreoffice.embindtest.Enum.E_2);
+        console.assert(v[2][1] === zetajs.uno.org.libreoffice.embindtest.Enum.E3);
+        console.assert(v[2][2] === zetajs.uno.org.libreoffice.embindtest.Enum.E_10);
+    }
     const objImpl = {
         execute(args) {
             if (args.length !== 1 || args[0].Name !== 'name') {
