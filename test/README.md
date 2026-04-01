@@ -1,8 +1,5 @@
 # zetajs Smoketesting
 
-*Note:*  Running `smoketest.js` requires a LibreOffice configured with `--enable-dbgutil` to have
-the `org.libreoffice.embindtest` UNOIDL entities available.
-
 ## Running the smoketest
 
 Put this directory into a webservers webroot.
@@ -35,4 +32,4 @@ Module.uno_scripts = [
     'zetajs/source/zeta.js',
     'zetajs/test/smoketest.js'];
 ```
-(or whatever the paths where you serve them, relative to `qt_soffice.html`; `zeta.js` always needs to come first), and to build LOWA with an `EMSCRIPTEN_EXTRA_SOFFICE_PRE_JS=/path/to/include.js` configuration option (e.g., as a line in `autogen.input`), with `/path/to` adapted accordingly.  (The `test/smoketest.js` code requires a LibreOffice configured with `--enable-dbgutil` to have the `org.libreoffice.embindtest` UNOIDL entities available.)
+(or whatever the paths where you serve them, relative to `qt_soffice.html`; `zeta.js` always needs to come first), and to build LOWA with an `EMSCRIPTEN_EXTRA_SOFFICE_PRE_JS=/path/to/include.js` configuration option (e.g., as a line in `autogen.input`), with `/path/to` adapted accordingly.
