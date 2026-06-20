@@ -1,151 +1,157 @@
-# zetajs: Access ZetaOffice in the Browser from JavaScript via UNO
+# zetajs — Letter Address Vue.js 3 demo
 
-The zetajs library provides the facilities to run an instance of ZetaOffice integrated in your
-web site, allowing you to control it with JavaScript code via the LibreOffice
-[UNO](https://wiki.documentfoundation.org/Documentation/DevGuide) technology.
+A slimmed fork of [allotropia/zetajs](https://github.com/allotropia/zetajs), focused on the **Letter Address Vue.js 3** demo. It embeds ZetaOffice (LibreOffice compiled to WebAssembly) into the browser and drives it through the LibreOffice UNO API via the [zetajs](source/) bridge, with no surrounding LibreOffice menubars, toolbars, or side panels.
 
-Use cases range from an in-browser office suite that looks and feels just like its desktop
-counterpart, to fine-tuned custom text editing and spreadsheet capabilities embedded in your web
-site, to a headless zetajs instance that does document conversion in the background.
+The library code under [`source/`](source/) (`zeta.js`, `zetaHelper.ts`, and the committed compiled `zetaHelper.js`) is retained because the demo depends on it. The only example in this fork is `letter-address-vuejs3`.
 
-For a detailed description of zetajs, see the [Starting Points](docs/start.md) documentation.
+## Online demo
 
-(Technically, zetajs provides a wrapper on top of the
-[Embind-based](https://blog.allotropia.de/2024/04/30/libreoffice-javascripted/) JavaScript scripting
-capabilities for LibreOffice. But it aims to provide a nicer, more idiomatic JavaScript experience,
-and completely hides the underlying machinery. In the future, it may even move away from that
-underlying Embind layer, in a backward-compatible way.)
+A live build is hosted here:
 
-## Using ZetaOffice
+**https://zetaoffice.net/demos/letter-address-vuejs3/**
 
-Visit [zetaoffice.net](https://zetaoffice.net) to learn more about ZetaOffice, its CDN and how to host ZetaOffice yourself.
+## What it does
 
-### Demo
-To see a demo of zetajs in use, visit [zetaoffice.net/#tryit](https://zetaoffice.net/#tryit).
+The demo is a stripped-down Writer document canvas presented as a web form-letter editor. The embedded document renders into an HTML `<canvas id="qtcanvas">`; a loading spinner ("MyDocumentProcessor is loading...") is shown until the WASM runtime and both documents are ready.
 
-![screenshots](screenshots.png)
+Two documents are loaded into the WASM filesystem and embedded into the canvas:
 
-### Examples and test code
+- `letter.odt` — a Writer letter (the editable form letter)
+- `table.ods` — a Calc spreadsheet of recipient addresses
 
-Check out our examples. Each example has instructions how to run it in its respective folder.
+User-facing features:
 
-| Example | Description | Toolkits/Libraries | Online Demo |
-| --- | --- | --- | --- |
-| [standalone](https://github.com/allotropia/zetajs/tree/main/examples/standalone) | Standalone Writer document canvas with simple formatting options. *Simple code, easy to start with* | Bootstrap |https://zetaoffice.net/demos/standalone/ |
-| [letter-address-vuejs3](https://github.com/allotropia/zetajs/tree/main/examples/letter-address-vuejs3) | Web form letter demo | Vue, w3.css | https://zetaoffice.net/demos/letter-address-vuejs3/
-| [web-office](https://github.com/allotropia/zetajs/tree/main/examples/web-office) | Full office suite in the browser | Bootstrap | https://zetaoffice.net/demos/web-office/
-| [ping-monitor](https://github.com/allotropia/zetajs/tree/main/examples/ping-monitor) | Chart with values being added on the fly | Bootstrap, ping.js | https://zetaoffice.net/demos/ping-monitor/
-| [vuejs3-ping-tool](https://github.com/allotropia/zetajs/tree/main/examples/vuejs3-ping-tool) | Chart with values being added on the fly | Vue, Bootstrap, ping.js | https://zetaoffice.net/demos/vuejs3-ping-tool/
-| [convertpdf](https://github.com/allotropia/zetajs/tree/main/examples/convertpdf) | local file to PDF conversion service | Plain javascript | https://zetaoffice.net/demos/convertpdf/
-| [simple-examples](https://github.com/allotropia/zetajs/tree/main/examples/simple-examples) | small examples displaying various API features | Plain javascript
+- **Tabs** — "Editor" (the letter) and "Addresses" (the table) switch which embedded frame is in the foreground. In editor mode the formatting toolbar and the recipient panel are shown; in table mode the toolbar is hidden and the canvas is enlarged.
+- **Formatting toolbar** ([`ControlBar.vue`](examples/letter-address-vuejs3/src/components/ControlBar.vue), built with `vue-file-toolbar-menu`) — Bold, Italic, Underline, Overline, Strikeout, Shadowed, character color and background color pickers, grow/shrink font size, font-size and font-name selectors (the font list is read from LibreOffice's actual `FontNameList`), left/center/right/justified alignment, and a bulleted list toggle. Button highlight state reflects the real formatting at the cursor via UNO status listeners.
+- **Recipient insertion** — recipient names read from the address spreadsheet populate a list box; selecting one and clicking **Insert Address** fills the letter's placeholder fields (`<Recipient's Title>`, `<Recipient's name>`, street, postal code, city, state). The sender fields are hard-coded in the demo.
+- **Upload / Reload** — upload a new `.odt` (letter) or `.ods` (table) into the active tab, or reload the current file.
+- **Download** — export the letter as **ODT** (LibreOffice `writer8` filter) or **PDF** (`writer_pdf_Export` filter), offered to the browser as `letter.odt` / `letter.pdf`.
 
-These examples use the ZetaOffice CDN to get you started quickly.
+Typical flow: page loads → spinner while the runtime and both documents load → UI becomes ready (tabs, toolbar, upload, reload, recipient list, and Insert button enable) → edit and format the letter → pick a recipient and insert the address → switch tabs, upload/reload, or download.
 
-## Why zetajs
+## Architecture
 
-See how zetajs makes scripting ZetaOffice easy, building on the foundation of the LibreOffice UNO API:
+The demo runs across **two threads** that communicate only via `postMessage` over a `MessagePort`:
 
-### 1. Load a document
+1. **Main / UI thread** — Vue 3 ([`src/main.js`](examples/letter-address-vuejs3/src/main.js) mounts [`App.vue`](examples/letter-address-vuejs3/src/App.vue) onto `#app`) plus the plain-JS controller [`public/pre_soffice.js`](examples/letter-address-vuejs3/public/pre_soffice.js). It uses `ZetaHelperMain` to start the office thread and to relay UI commands (toggle formatting, switch tab, download, reload, insert address).
+2. **Office thread (Web Worker)** — runs the LibreOffice WASM (LOWA) and [`public/office_thread.js`](examples/letter-address-vuejs3/public/office_thread.js), which uses `ZetaHelperThread` to drive the UNO API: loading the documents, embedding their frames into the Qt canvas, disabling chrome, registering formatting/font listeners, and performing exports.
 
-```javascript
-const css = zetajs.uno.com.sun.star;
-const desktop = css.frame.Desktop.create(zetajs.getUnoComponentContext());
-let xModel = desktop.getCurrentFrame().getController().getModel();
-if (!xModel?.queryInterface(zetajs.type.interface(css.text.XTextDocument))) {
-    xModel = desktop.loadComponentFromURL(
-        'file:///android/default-document/example.odt', '_default', 0, []);
-}
+Bootstrap: `App.vue`'s `mounted()` hook appends `./config.js` (optional) and then `./pre_soffice.js` (as an ES module) to the page; once `pre_soffice.js` has loaded, `ControlBar.init_control_bar()` wires up the toolbar.
+
+Both `pre_soffice.js` and `office_thread.js` import the helper from `./assets/vendor/zetajs/zetaHelper.js`. Those vendor entries are **symlinks into the committed library source**:
+
+- `public/assets/vendor/zetajs/zeta.js` → [`source/zeta.js`](source/zeta.js)
+- `public/assets/vendor/zetajs/zetaHelper.js` → [`source/zetaHelper.js`](source/zetaHelper.js)
+
+So the example always runs against the live `source/` files without copying. [`source/zeta.js`](source/zeta.js) is the core UNO ↔ JS bridge over Emscripten/Embind; [`source/zetaHelper.js`](source/zetaHelper.js) provides the `ZetaHelperMain`/`ZetaHelperThread` setup helpers.
+
+The heavy `soffice.{js,wasm,data}` binaries are **fetched at runtime from a base URL**. By default this is the ZetaOffice CDN (`https://cdn.zetaoffice.net/zetaoffice_latest/`); it is configurable (see [Configuration](#configuration)). Cross-origin isolation (COOP/COEP) is required because the multithreaded WASM uses `SharedArrayBuffer`.
+
+## Repository layout
+
+```
+.
+├── LICENSE
+├── README.md                         (this file)
+├── source/                           ZetaJS library (consumed via symlinks)
+│   ├── zeta.js                        core UNO <-> JS / Embind bridge
+│   ├── zetaHelper.ts                  TypeScript source of the helper
+│   └── zetaHelper.js                  compiled helper (committed)
+└── examples/
+    ├── .gitignore                    ignores */config.js
+    └── letter-address-vuejs3/        the demo
+        ├── README.md
+        ├── index.html
+        ├── package.json
+        ├── vite.config.js
+        ├── jsconfig.json
+        ├── public/
+        │   ├── pre_soffice.js         main-thread controller
+        │   ├── office_thread.js       office-thread (Web Worker) logic
+        │   ├── config.sample.js       copy to config.js to override the soffice base URL
+        │   ├── letter.odt             Writer form letter
+        │   ├── table.ods              Calc address table
+        │   ├── favicon.ico
+        │   └── assets/vendor/zetajs/  symlinks -> ../../../../../../source/{zeta,zetaHelper}.js
+        └── src/
+            ├── main.js
+            ├── App.vue
+            ├── components/ControlBar.vue
+            └── assets/{base,main}.css
 ```
 
-### 2. Change each paragraph in Writer into a random color
+## Prerequisites
 
-```javascript
-const xText = xModel.getText();
-const xParaEnumeration = xText.createEnumeration();
-for (const xParagraph of xParaEnumeration) {
-    const color = Math.floor(Math.random() * 0xFFFFFF);
-    xParagraph.setPropertyValue("CharColor", color);
-}
+- **Node.js** and **npm**.
+
+You can install npm system-wide, or isolate it, e.g. with `nodeenv --node=system --with-npm nodeenv/`.
+
+## Run locally
+
+All commands run from inside the example directory (there is **no root `package.json`**):
+
+```sh
+cd examples/letter-address-vuejs3
+npm install
+npm start
 ```
 
-## Using with an own build
+The Vite dev server serves the app at **http://127.0.0.1:8080** (with `strictPort`, so it fails rather than picking another port if 8080 is taken). The required COOP/COEP headers are injected automatically in development. `npm run dev` is an identical alias for `npm start`.
 
-Please have a look into the respective config.sample.js file of each demo to use another ZetaOffice build.
+No root-level build or TypeScript compilation step is needed: the compiled [`source/zetaHelper.js`](source/zetaHelper.js) is committed to the repository.
 
-You may also compile a custom [LOWA build](https://git.libreoffice.org/core/+/refs/heads/master/static/README.wasm.md). There the folder `workdir/installation/LibreOffice/emscripten/` will contain the files for the web root. If you host the WASM binary on another origin then the example code you will need to set a [CORS header](https://developer.mozilla.org/docs/Web/HTTP/CORS).
+## Production build
 
-For the sources of the WASM binaries served by cdn.zetaoffice.net see:
-* https://git.libreoffice.org/core/+/refs/heads/distro/allotropia/zeta-24-2
-* https://github.com/allotropia/emscripten/commits/fixed-3.1.65
-* https://github.com/allotropia/qt5/tree/5.15.2%2Bwasm
-* https://github.com/allotropia/qtbase/tree/5.15.2%2Bwasm
+```sh
+npm run build      # vite build -> static output with relative './' base paths
+npm run preview    # serve the built output locally
+```
 
-## Contributions
+Linting is available via `npm run lint`.
 
-### Submitting issues
+## Deployment
 
-First off, please search existing issues first, before filing a new
-one (see [search on github](https://help.github.com/articles/searching-issues)).
+Serve the built static files from any web server, but the server **must** send these HTTP response headers so the WASM runtime can use `SharedArrayBuffer` (cross-origin isolation):
 
-If you think you've found a security problem, feel free to contact one
-of the project maintainers in private, for responsible disclosure.
+```
+Cross-Origin-Opener-Policy: same-origin
+Cross-Origin-Embedder-Policy: require-corp
+```
 
-### Development and Code
+Because the Vite build uses a relative base (`'./'`), the app can be served from a subdirectory.
 
-For any LibreOffice questions (code, API, features), you'll find us on
-the [LibreOffice IRC channel](https://web.libera.chat/?channels=libreoffice-dev) - changes
-to LibreOffice core then go through
-[TDF's development process and gerrit code review system](https://wiki.documentfoundation.org/Development/GetInvolved).
+## Configuration
 
-For changes to the zetajs library, just raise a pull request here, and
-make sure you've got permission to contribute your changes under the
-MIT license. For that, we use the [Developer Certificate of Origin (DCO)](https://developercertificate.org/):
+By default the `soffice` WASM binaries are fetched from the ZetaOffice CDN. To self-host them (or point at another base URL), copy the sample config and set your URL:
 
-~~~
-Developer Certificate of Origin
-Version 1.1
+```sh
+cp public/config.sample.js public/config.js
+```
 
-Copyright (C) 2004, 2006 The Linux Foundation and its contributors.
+In `public/config.js`, set `config_soffice_base_url` to an absolute URL **with a trailing slash** that hosts `soffice.data`, `soffice.data.js.metadata`, `soffice.js`, and `soffice.wasm`. See [`public/config.sample.js`](examples/letter-address-vuejs3/public/config.sample.js) for details. `config.js` is loaded before `pre_soffice.js`; if it is absent, the demo falls back to the CDN default.
 
-Everyone is permitted to copy and distribute verbatim copies of this
-license document, but changing it is not allowed.
+When the LOWA (`soffice`) files are served from a foreign origin, that origin must additionally send these HTTP response headers (as documented in `config.sample.js`):
 
+```
+Cross-Origin-Resource-Policy: cross-origin
+Access-Control-Allow-Origin: *
+Access-Control-Allow-Methods: *
+```
 
-Developer's Certificate of Origin 1.1
+## Updating from upstream / restoring other examples
 
-By making a contribution to this project, I certify that:
+This fork tracks upstream **allotropia/zetajs**. To bring back any example that is not present in this fork, check it out from the upstream branch:
 
-(a) The contribution was created in whole or in part by me and I
-    have the right to submit it under the open source license
-    indicated in the file; or
+```sh
+git remote add upstream https://github.com/allotropia/zetajs   # if not already configured
+git fetch upstream
+git checkout upstream/main -- examples/NAME
+```
 
-(b) The contribution is based upon previous work that, to the best
-    of my knowledge, is covered under an appropriate open source
-    license and I have the right under that license to submit that
-    work with modifications, whether created in whole or in part
-    by me, under the same open source license (unless I am
-    permitted to submit under a different license), as indicated
-    in the file; or
+For example `examples/convertpdf`, `examples/standalone`, and the other examples present in upstream can be restored this way.
 
-(c) The contribution was provided directly to me by some other
-    person who certified (a), (b) or (c) and I have not modified
-    it.
+## License and attribution
 
-(d) I understand and agree that this project and the contribution
-    are public and that a record of the contribution (including all
-    personal information I submit with it, including my sign-off) is
-    maintained indefinitely and may be redistributed consistent with
-    this project or the open source license(s) involved.
-~~~
+Licensed under the **MIT License**. Copyright (c) allotropia software GmbH and contributors. See [LICENSE](LICENSE) for the full text.
 
-When submitting a pull request, to make this certification please
-therefore add a sign-off line to your commits:
-
-~~~
-  Signed-off-by: Random J Developer <random@developer.example.org>
-~~~
-
-Use your real name (sorry, no pseudonyms or anonymous
-contributions).
-
-This project is tested with BrowserStack.
+This repository is a slimmed fork of the upstream project: **https://github.com/allotropia/zetajs**.
