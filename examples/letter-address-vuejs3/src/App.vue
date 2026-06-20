@@ -25,7 +25,7 @@ export default {
     <div class="container-fluid p-0" style="width:1150px; margin:auto;">
       <div class="row">
         <div class="col mt-3 mb-2">
-          <h1>ZetaJS: Letter Address Vue.js-3</h1>
+          <h1>MyDocumentProcessor: Letter Address Vue.js-3</h1>
         </div>
       </div>
       <div class="row">
@@ -49,7 +49,7 @@ export default {
                 <div class="canvas-container" onselectstart="event.preventDefault()">
                   <div id="loadingInfo" class="loading-info">
                     <div class="spinner"></div><br>
-                    <h2>ZetaOffice is loading...</h2>
+                    <h2>MyDocumentProcessor is loading...</h2>
                   </div>
                   <canvas id="qtcanvas" contenteditable="true" oncontextmenu="event.preventDefault()"
                     onkeydown="event.preventDefault()" style="width:870px; height:500px; visibility:hidden;"
@@ -92,9 +92,9 @@ export default {
 <style>
 .spinner {
   border: 16px solid #1F2937;
-  /* ZetaOffice brand color */
+  /* MyDocumentProcessor brand color */
   border-top: 16px solid #059669;
-  /* ZetaOffice brand color */
+  /* MyDocumentProcessor brand color */
   border-radius: 50%;
   width: 120px;
   height: 120px;

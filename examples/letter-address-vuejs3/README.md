@@ -1,4 +1,4 @@
-# A ZetaJS Letter Address Tool (Writer Demo using Vue.js-3)
+# A MyDocumentProcessor Letter Address Tool (Writer Demo using Vue.js-3)
 
 An example of a Web form letter demo, using a stripped-down, standalone Writer document canvas
 without any surrounding menubars, toolbars, side panels, etc. This version uses Vue.js-3.
