@@ -5,9 +5,14 @@
   "type": "module",
   "description": "Headless invoice PDF generation (JSON -> PDF) with pdfmake. No UI, no browser, no LibreOffice.",
   "scripts": {
-    "gen": "node src/cli.ts"
+    "gen": "node src/cli.ts",
+    "make-template": "node src/make-template.ts",
+    "render": "node src/render-docx.ts"
   },
   "dependencies": {
-    "pdfmake": "^0.2.10"
+    "docx": "^9.0.0",
+    "docxtemplater": "^3.50.0",
+    "pdfmake": "^0.2.10",
+    "pizzip": "^3.1.7"
   }
 }

@@ -1,3 +1,9 @@
 node_modules/
 *.pdf
+# generated .docx output (keep the editable template)
+*.docx
+!template.docx
+# scratch test data
 big-invoice.json
+mi-factura.json
+t.json
