@@ -79,8 +79,17 @@ export default {
                 </div>
                 <div id="invoiceCell">
                   <h4 class="mt-3">Invoice (demo)</h4>
-                  <button class="btn btn-success btn-sm" id="btnInvoice" onclick="btnGenerateInvoice()"
-                    disabled>Generate invoice</button>
+                  <textarea id="invoiceData" class="form-control form-control-sm" rows="7" spellcheck="false"
+                    style="font-family: monospace; font-size: 11px;" disabled></textarea>
+                  <div class="mt-1">
+                    <button class="btn btn-success btn-sm" id="btnInvoice" onclick="btnGenerateInvoice()"
+                      disabled>Generate invoice</button>
+                    <label class="btn btn-light btn-sm" id="lblCsv">
+                      Import CSV
+                      <input type="file" accept=".csv" id="btnCsv" class="file-input"
+                        onchange="btnImportCsv()" disabled>
+                    </label>
+                  </div>
                 </div>
               </div>
             </div>

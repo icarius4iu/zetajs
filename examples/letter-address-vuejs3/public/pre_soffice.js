@@ -24,10 +24,12 @@ const btnInsert = document.getElementById('btnInsert');
 const addrName = document.getElementById('addrName');
 const invoiceCell = document.getElementById('invoiceCell');
 const btnInvoice = document.getElementById('btnInvoice');
+const invoiceData = document.getElementById('invoiceData');
+const btnCsv = document.getElementById('btnCsv');
 const disabledElementsAry =
-  [btnLetter, btnTable, btnUpload, btnReload, btnInsert, addrName, btnInvoice];
+  [btnLetter, btnTable, btnUpload, btnReload, btnInsert, addrName, btnInvoice, invoiceData, btnCsv];
 
-// Sample data for the invoice demo (edit freely to try different data).
+// Sample data for the invoice demo (edit the textarea freely to try your own data).
 const SAMPLE_INVOICE = {
   customer: 'Arthur Dent',
   number: 'INV-2026-0042',
@@ -38,6 +40,7 @@ const SAMPLE_INVOICE = {
     {desc: 'Pan-Galactic Gargle Blaster', qty: 3, price: 7.50},
   ],
 };
+invoiceData.value = JSON.stringify(SAMPLE_INVOICE, null, 2);  // prefill the editable data box
 const canvas_height = parseInt(canvas.style.height);
 const canvas_width = parseInt(canvas.style.width);
 
@@ -160,8 +163,43 @@ window.btnInsertFunc = () => {  // window....: make it accessible to vue.js
 }
 
 window.btnGenerateInvoice = () => {  // window....: make it accessible to vue.js
+  let data;
+  try {
+    data = JSON.parse(invoiceData.value);  // use whatever the user edited
+  } catch (err) {
+    window.alert('Invalid JSON in the invoice data: ' + err.message);
+    return;
+  }
   // Hand the data model to the office thread, which builds the document from it.
-  zHM.thrPort.postMessage({cmd: 'generateInvoice', data: SAMPLE_INVOICE});
+  zHM.thrPort.postMessage({cmd: 'generateInvoice', data});
+}
+
+// Parse a "desc,qty,price" CSV into invoice items. A header row is skipped
+// automatically because its qty/price are not numbers.
+function parseCsvItems(text) {
+  const items = [];
+  for (const line of text.split(/\r?\n/)) {
+    if (line.trim() === '') continue;
+    const cols = line.split(',');
+    if (cols.length < 3) continue;
+    const qty = Number(cols[1]);
+    const price = Number(cols[2]);
+    if (Number.isNaN(qty) || Number.isNaN(price)) continue;
+    items.push({desc: cols[0].trim(), qty, price});
+  }
+  return items;
+}
+
+window.btnImportCsv = () => {  // window....: make it accessible to vue.js
+  const file = btnCsv.files[0];
+  if (!file) return;
+  file.text().then((text) => {
+    let data;
+    try { data = JSON.parse(invoiceData.value); } catch { data = {...SAMPLE_INVOICE}; }
+    data.items = parseCsvItems(text);
+    invoiceData.value = JSON.stringify(data, null, 2);  // show merged data; user clicks Generate
+    btnCsv.value = '';  // allow re-importing the same file
+  });
 }
 
 

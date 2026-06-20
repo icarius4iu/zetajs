@@ -174,7 +174,10 @@ function tableToHtml() {
 // This is the "report engine" core - data in, document out, all via UNO.
 function generateInvoice(data) {
   const xText = letterXModel.getText();
-  xText.setString('');                       // clear the document body
+  // Clear the document body completely (select from start to end, then delete).
+  const clearCursor = xText.createTextCursor();
+  clearCursor.gotoEnd(true);
+  clearCursor.setString('');
   const cursor = xText.createTextCursor();
 
   // Title.
@@ -200,6 +203,7 @@ function generateInvoice(data) {
   const table = letterXModel.createInstance('com.sun.star.text.TextTable');
   table.initialize(items.length + 2, headers.length);
   xText.insertTextContent(cursor, table, false);
+  table.RepeatHeadline = true;  // repeat the header row on each page if the table spans pages
 
   const colName = (c) => String.fromCharCode(65 + c);  // 0 -> 'A', 1 -> 'B', ...
   headers.forEach((h, c) => table.getCellByName(colName(c) + '1').setString(h));
