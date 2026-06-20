@@ -16,10 +16,12 @@ public final class Main {
     String outPath = args.length > 1 ? args[1] : "invoice.pdf";
 
     Invoice inv = new ObjectMapper().readValue(Files.readString(Path.of(inPath)), Invoice.class);
-    byte[] pdf = InvoiceGenerator.toPdf(inv);
-    Files.write(Path.of(outPath), pdf);
+    boolean html = outPath.toLowerCase().endsWith(".html") || outPath.toLowerCase().endsWith(".htm");
+    byte[] bytes = html ? InvoiceGenerator.toHtml(inv) : InvoiceGenerator.toPdf(inv);
+    Files.write(Path.of(outPath), bytes);
 
     int n = inv.items() == null ? 0 : inv.items().size();
-    System.out.println("Wrote " + outPath + " (" + pdf.length + " bytes) from " + inPath + " — " + n + " item(s).");
+    System.out.println("Wrote " + outPath + " (" + bytes.length + " bytes, " + (html ? "html" : "pdf")
+        + ") from " + inPath + " — " + n + " item(s).");
   }
 }

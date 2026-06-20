@@ -1,79 +1,80 @@
-# invoice-lib-java — headless invoice PDF generation (Java / Maven)
+# invoice-lib-java — our own document-generation engine (Java / Maven)
 
-The Java counterpart of the Node `invoice-backend`: a small **Maven library** that
-turns an invoice data model into a **PDF** — no UI, no browser, no LibreOffice.
-Uses [OpenPDF](https://github.com/LibrePDF/OpenPDF) (pure Java), so it runs anywhere
-a JVM does.
+A small, **in-house** document-generation library (no JasperReports): a
+format-independent document model + pluggable renderers, with generic data
+binding. The invoice is just a *consumer* of the engine — the engine itself is
+reusable for any report.
+
+## Architecture
+
+```
+data ──► build a Document (Blocks) ──► Renderer ──► bytes
+         (com.example.docgen)          PdfRenderer / HtmlRenderer
+```
+
+- **`com.example.docgen`** — the engine:
+  - `Document` + `Block` (sealed): `Heading`, `Text`, `Spacer`, `PageBreak`,
+    `BulletList`, `Table`.
+  - `Column<T>` + `Block.Table.of(columns, data, summary)` — **generic data
+    binding**: any `List<T>` becomes a table by describing its columns.
+  - `Renderer` interface, with `PdfRenderer` (OpenPDF as the drawing primitive)
+    and `HtmlRenderer` (pure Java, zero dependencies). Add a format → add a renderer.
+- **`com.example.invoice`** — a consumer: `InvoiceGenerator` builds a `Document`
+  and renders it to PDF or HTML.
 
 ## Requirements
 
-- **JDK 17+** (built and tested on JDK 25) and **Maven 3.8+**.
+- **JDK 21+** (built and tested on JDK 25) and **Maven 3.8+**.
 
 ## Build & test
 
 ```sh
-mvn package
+mvn package      # compiles, runs the JUnit tests, builds target/invoice-lib.jar
 ```
 
-Compiles, runs the JUnit tests, and produces a runnable fat jar at
-`target/invoice-lib.jar`.
-
-## Use as a CLI
+## CLI
 
 ```sh
-java -jar target/invoice-lib.jar [data.json] [out.pdf]
-#   default: sample-invoice.json -> invoice.pdf
+java -jar target/invoice-lib.jar [data.json] [out.pdf|out.html]
 java -jar target/invoice-lib.jar sample-invoice.json invoice.pdf
+java -jar target/invoice-lib.jar sample-invoice.json invoice.html
 ```
 
-## Use as a library
+## As a library — the engine is generic
 
-```xml
-<dependency>
-  <groupId>com.example</groupId>
-  <artifactId>invoice-lib</artifactId>
-  <version>0.1.0</version>
-</dependency>
-```
+Bind any list to a report, render to any format:
 
 ```java
-import com.example.invoice.*;
+import com.example.docgen.*;
 import java.util.List;
 
-Invoice inv = new Invoice("Arthur Dent", "INV-2026-0042", "2026-06-20",
-    List.of(new Item("Babel fish", 2, 19.99),
-            new Item("Towel", 1, 42.00)));
+record Person(String name, int age) {}
 
-byte[] pdf = InvoiceGenerator.toPdf(inv);   // PDF bytes — write, stream, upload…
+List<Column<Person>> cols = List.of(
+    Column.of("Name", Person::name),
+    Column.of("Age", p -> String.valueOf(p.age()), Align.RIGHT));
+
+Document report = Document.builder()
+    .heading("People")
+    .add(Block.Table.of(cols, people, /* summary */ null))
+    .build();
+
+byte[] pdf  = new PdfRenderer().render(report);
+byte[] html = new HtmlRenderer().render(report);
 ```
 
-## Data model
-
-Plain Java records (Jackson maps JSON straight onto them):
-
-```java
-record Item(String desc, double qty, double price)               // amount() = qty * price
-record Invoice(String customer, String number, String date, List<Item> items)
-```
-
-Same JSON shape as the Node backend:
-
-```json
-{ "customer": "…", "number": "…", "date": "…",
-  "items": [ { "desc": "…", "qty": 0, "price": 0 } ] }
-```
+The invoice does exactly this — see
+[InvoiceGenerator](src/main/java/com/example/invoice/InvoiceGenerator.java).
 
 ## What it demonstrates
 
-- **Data → document** in plain Java; `InvoiceGenerator.toPdf` returns `byte[]`.
-- **Dynamic table**: one `PdfPTable` row per item, sized from the data.
-- **Pagination for free**: a long table flows across pages and the header row
-  repeats (`setHeaderRows(1)`) — 60 items → 2 pages.
-- **No native dependencies**: OpenPDF is pure Java.
+- An **own engine**: document model + renderers, not a third-party report tool.
+- **Generic binding**: `Column<T>` maps any data type to table rows.
+- **Multiple outputs** from one model: PDF (OpenPDF) and HTML (pure Java).
+- **Pagination**: tables flow across pages with a repeated header — 60 items → 2 pages.
 
-## Next steps
+## Extending it
 
-- **JasperReports** (the Java *iReport* engine): design a `.jrxml` and export
-  natively to PDF / DOCX / ODT / XLSX / HTML — true multi-format reporting.
-- **Apache POI + LibreOffice**: build a `.docx` and `soffice --convert-to` it to
-  any format (mirrors Method B of the Node backend).
+- New format → implement `Renderer` (e.g. an `OdtRenderer`, `MarkdownRenderer`).
+- New block → add a record to the sealed `Block` and a case in each renderer
+  (the compiler enforces handling it everywhere).

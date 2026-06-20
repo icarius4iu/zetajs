@@ -12,16 +12,23 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class InvoiceGeneratorTest {
 
+  private static final Invoice SAMPLE = new Invoice("Arthur Dent", "INV-1", "2026-06-20",
+      List.of(new Item("Babel fish", 2, 19.99), new Item("Towel", 1, 42.0)));
+
   @Test
   void producesAValidPdf() {
-    Invoice inv = new Invoice("Arthur Dent", "INV-1", "2026-06-20",
-        List.of(new Item("Babel fish", 2, 19.99), new Item("Towel", 1, 42.0)));
-
-    byte[] pdf = InvoiceGenerator.toPdf(inv);
-
+    byte[] pdf = InvoiceGenerator.toPdf(SAMPLE);
     assertTrue(pdf.length > 500, "PDF should be non-trivial");
-    String header = new String(pdf, 0, 5, StandardCharsets.ISO_8859_1);
-    assertEquals("%PDF-", header, "should start with the PDF header");
+    assertEquals("%PDF-", new String(pdf, 0, 5, StandardCharsets.ISO_8859_1));
+  }
+
+  @Test
+  void producesHtmlWithTheData() {
+    String html = new String(InvoiceGenerator.toHtml(SAMPLE), StandardCharsets.UTF_8);
+    assertTrue(html.contains("<table"), "should contain a table");
+    assertTrue(html.contains("Arthur Dent"), "should contain the customer");
+    assertTrue(html.contains("Babel fish"), "should contain an item");
+    assertTrue(html.contains("TOTAL"), "should contain the summary row");
   }
 
   @Test
@@ -30,10 +37,8 @@ class InvoiceGeneratorTest {
     for (int i = 0; i < 80; i++) {
       items.add(new Item("Line item #" + (i + 1), 1, 9.99));
     }
-    byte[] small = InvoiceGenerator.toPdf(new Invoice("X", "1", "2026-06-20",
-        List.of(new Item("one", 1, 1.0))));
+    byte[] small = InvoiceGenerator.toPdf(new Invoice("X", "1", "2026-06-20", List.of(new Item("one", 1, 1.0))));
     byte[] big = InvoiceGenerator.toPdf(new Invoice("Megacorp", "2", "2026-06-20", items));
-
     assertTrue(big.length > small.length, "more items should produce a larger document");
   }
 }
