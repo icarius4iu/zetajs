@@ -45,10 +45,10 @@ export default {
             <div class="row">
               <!-- The ControlBar may extend horizontally if the selected font family has a long name. -->
               <ControlBar id="controlbar" class="mt-1 mb-1" />
-              <div id="canvasCell" class="col-lg-9">
+              <div id="canvasCell" class="col-lg-9" aria-busy="true">
                 <div class="canvas-container" onselectstart="event.preventDefault()">
-                  <div id="loadingInfo" class="loading-info">
-                    <div class="spinner"></div><br>
+                  <div id="loadingInfo" class="loading-info" role="status" aria-live="polite" aria-atomic="true">
+                    <div class="spinner" aria-hidden="true"></div><br>
                     <h2>MyDocumentProcessor is loading...</h2>
                   </div>
                   <canvas id="qtcanvas" contenteditable="true" oncontextmenu="event.preventDefault()"
@@ -101,8 +101,8 @@ export default {
   position: relative;
   left: 60px;
   /* adjust to center */
-  animation: spin 2s linear 30;
-  /* 60 seconds */
+  animation: spin 2s linear infinite;
+  /* Spin until the loading overlay is hidden; a watchdog resolves stuck loads. */
 }
 
 @keyframes spin {

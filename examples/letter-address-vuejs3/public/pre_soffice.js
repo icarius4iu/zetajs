@@ -120,8 +120,19 @@ window.btnUploadFunc = () => {  // window....: make it accessible to vue.js
 window.btnReloadFunc = () => {  // window....: make it accessible to vue.js
   for (const elem of disabledElementsAry) elem.disabled = true;
   lblUpload.classList.add('disabled');
+  // Reset the overlay back to its loading state (clear any prior error UI).
+  const staleRetry = loadingInfo.querySelector('#btnRetry');
+  if (staleRetry) staleRetry.remove();
+  const heading = loadingInfo.querySelector('h2');
+  if (heading) heading.textContent = 'MyDocumentProcessor is loading...';
+  const spinnerEl = loadingInfo.querySelector('.spinner');
+  if (spinnerEl) spinnerEl.style.display = null;
   loadingInfo.style.display = null;
   canvas.style.visibility = 'hidden';
+  canvasCell.setAttribute('aria-busy', 'true');
+  clearLoadWatchdog();
+  loadWatchdog = setTimeout(
+    () => showLoadError('Reload is taking longer than expected.'), 45000);
   zHM.thrPort.postMessage({cmd: 'reload', id: letterForeground});
 }
 
@@ -135,14 +146,59 @@ window.btnInsertFunc = () => {  // window....: make it accessible to vue.js
 
 async function getDataFile(file_url) {
   const response = await fetch(file_url);
+  if (!response.ok)
+    throw new Error('HTTP ' + response.status + ' while fetching ' + file_url);
   return response.arrayBuffer();
 }
 
 
+const REVEAL_SETTLE_MS = 1000;  // let the cross-thread Qt resize/repaint settle before revealing the canvas
+let loadWatchdog;
+
+function clearLoadWatchdog() {
+  if (loadWatchdog) { clearTimeout(loadWatchdog); loadWatchdog = null; }
+}
+
+// Resolve the loading overlay into a visible error with a reload option, so it
+// can never stay stuck spinning. A full page reload is the only safe recovery:
+// the soffice WASM bootstrap cannot be re-run in place.
+function showLoadError(message) {
+  clearLoadWatchdog();
+  const heading = loadingInfo.querySelector('h2');
+  if (heading) heading.textContent = message;
+  const spinnerEl = loadingInfo.querySelector('.spinner');
+  if (spinnerEl) spinnerEl.style.display = 'none';
+  canvasCell.setAttribute('aria-busy', 'false');
+  if (!loadingInfo.querySelector('#btnRetry')) {
+    const retry = document.createElement('button');
+    retry.id = 'btnRetry';
+    retry.className = 'btn btn-primary btn-sm mt-2';
+    retry.textContent = 'Retry';
+    retry.onclick = () => location.reload();
+    loadingInfo.appendChild(retry);
+  }
+}
+
+window.addEventListener('unhandledrejection', (ev) => {
+  console.error('Unhandled promise rejection during load:', ev.reason);
+});
+
+// Start fetching the documents right away so it overlaps with the WASM download.
+const letterFilePromise = getDataFile('./letter.odt');
+const tableFilePromise = getDataFile('./table.ods');
+
+
 zHM.start(() => {
+  // The office thread (and the WASM runtime) are up now. Arm a watchdog so the
+  // loading overlay always resolves: if the document/fonts phase never reports
+  // ready, surface an error with a reload option instead of spinning forever.
+  loadWatchdog = setTimeout(
+    () => showLoadError('Loading is taking longer than expected.'), 45000);
+
   zHM.thrPort.onmessage = (e) => {
     switch (e.data.cmd) {
     case 'ui_ready':
+      clearLoadWatchdog();
       // Trigger resize of the embedded window to match the canvas size.
       // May somewhen be obsoleted by:
       //   https://gerrit.libreoffice.org/c/core/+/174040
@@ -150,11 +206,17 @@ zHM.start(() => {
       setTimeout(() => {  // display Office UI properly
         loadingInfo.style.display = 'none';
         canvas.style.visibility = null;
+        canvasCell.setAttribute('aria-busy', 'false');
         tbDataJs.font_name_list = e.data.fontsList;
         for (const elem of disabledElementsAry) elem.disabled = false;
         lblUpload.classList.remove('disabled');
         btnInsert.disabled = !letterForeground;
-      }, 1000);  // milliseconds
+        if (letterForeground) canvas.focus();  // let the user start typing immediately
+      }, REVEAL_SETTLE_MS);  // milliseconds
+      break;
+    case 'load_error':
+      showLoadError('The document could not be loaded'
+        + (e.data.message ? ': ' + e.data.message : '.'));
       break;
     case 'resizeEvt':
       window.dispatchEvent(new Event('resize'));
@@ -189,12 +251,14 @@ zHM.start(() => {
     }
   };
 
-  getDataFile('./letter.odt').then((aryBuf) => {
-    zHM.FS.writeFile('/tmp/letter.odt', new Uint8Array(aryBuf));
-  });
-  getDataFile('./table.ods').then((aryBuf) => {
-    zHM.FS.writeFile('/tmp/table.ods', new Uint8Array(aryBuf));
-  });
+  // Documents were already requested at module load; write each into the worker
+  // filesystem as soon as it arrives, and surface fetch failures as a load error.
+  letterFilePromise
+    .then((aryBuf) => { zHM.FS.writeFile('/tmp/letter.odt', new Uint8Array(aryBuf)); })
+    .catch((err) => showLoadError('Could not load letter.odt: ' + err.message));
+  tableFilePromise
+    .then((aryBuf) => { zHM.FS.writeFile('/tmp/table.ods', new Uint8Array(aryBuf)); })
+    .catch((err) => showLoadError('Could not load table.ods: ' + err.message));
 });
 
 /* vim:set shiftwidth=2 softtabstop=2 expandtab cinoptions=b1,g0,N-s cinkeys+=0=break: */

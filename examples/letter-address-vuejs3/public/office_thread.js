@@ -21,6 +21,7 @@ let tableXModel, letterXModel, tableCtrl, letterCtrl;
 // example specific:
 let writerModuleConfigured=false, calcModuleConfigured=false;
 const readyList = {Fonts: false, Window: false};
+let uiReadyPending = false;  // true while exactly one ui_ready is still owed for the current (re)load
 let letterFrame, tableFrame, fontsList, switchVals;
 // switchVals needed globally in case the user switches tabs rapidly.
 let bean_overwrite, bean_odt_export, bean_pdf_export;
@@ -37,8 +38,12 @@ function demo() {
   bean_pdf_export = new css.beans.PropertyValue({Name: 'FilterName', Value: 'writer_pdf_Export'});
 
   zHT.configDisableToolbars(['Writer', 'Calc']);
-  loadFile('both');
-  tableToHtml();
+  try {
+    loadFile('both');
+    tableToHtml();
+  } catch (err) {
+    zHT.thrPort.postMessage({cmd: 'load_error', message: String((err && err.message) || err)});
+  }
 
   zHT.thrPort.onmessage = (e) => {
     switch (e.data.cmd) {
@@ -61,10 +66,14 @@ function demo() {
       zHT.thrPort.postMessage({cmd: 'download', id: e.data.id});
       break;
     case 'reload':
-      const letterForeground = e.data.id;
-      if (letterForeground) letterXModel.close(true)
+      try {
+        const letterForeground = e.data.id;
+        if (letterForeground) letterXModel.close(true);
         else tableXModel.close(true);
-      loadFile(letterForeground ? 'letter' : 'table');
+        loadFile(letterForeground ? 'letter' : 'table');
+      } catch (err) {
+        zHT.thrPort.postMessage({cmd: 'load_error', message: String((err && err.message) || err)});
+      }
       break;
     case 'toggleFormat':
       const params = [];
@@ -152,6 +161,9 @@ function tableToHtml() {
 
 
 function loadFile(fileTab) {
+  // Reset the readiness gate for this (re)load so exactly one ui_ready is posted.
+  readyList.Window = false;
+  uiReadyPending = true;
   if (fileTab != 'letter') {  // table or both
     tableXModel = desktop.loadComponentFromURL('file:///tmp/table.ods', '_default', 0, []);
     tableCtrl = tableXModel.getCurrentController();
@@ -190,18 +202,30 @@ function loadFile(fileTab) {
     letterFrame.getContainerWindow().setPosSize(-1000,-1000,500,500,15);
     letterFrame.getContainerWindow().FullScreen = true;
 
-    // Get font list for toolbar.
-    const fontsUrlObj = zHT.transformUrl('FontNameList');
-    const fontsDispatcher = zHT.queryDispatch(letterCtrl, fontsUrlObj);
-    const fontsDispatchNotifier = css.frame.XDispatch.constructor(fontsDispatcher)
-    const fontListener = zetajs.unoObject(
-      [css.frame.XStatusListener],
-      { statusChanged(e) {
-          fontsDispatchNotifier.removeStatusListener(fontListener, fontsUrlObj);
-          fontsList = zetajs.fromAny(e.State);
-          startupReady('Fonts');
-      }});
-    fontsDispatchNotifier.addStatusListener(fontListener, fontsUrlObj);
+    // Get font list for toolbar. This must never strand readiness: if the
+    // FontNameList status event is slow or never arrives, fall back after a few
+    // seconds so the loading overlay still resolves (the font list is just
+    // cosmetic data for the toolbar, not required for the document to be usable).
+    readyList.Fonts = false;
+    let fontsFallback = setTimeout(() => startupReady('Fonts'), 5000);
+    try {
+      const fontsUrlObj = zHT.transformUrl('FontNameList');
+      const fontsDispatcher = zHT.queryDispatch(letterCtrl, fontsUrlObj);
+      const fontsDispatchNotifier = css.frame.XDispatch.constructor(fontsDispatcher);
+      const fontListener = zetajs.unoObject(
+        [css.frame.XStatusListener],
+        { statusChanged(e) {
+            clearTimeout(fontsFallback);
+            fontsDispatchNotifier.removeStatusListener(fontListener, fontsUrlObj);
+            fontsList = zetajs.fromAny(e.State);
+            startupReady('Fonts');
+        }});
+      fontsDispatchNotifier.addStatusListener(fontListener, fontsUrlObj);
+    } catch (err) {
+      console.error('FontNameList listener setup failed; continuing without a font list:', err);
+      clearTimeout(fontsFallback);
+      startupReady('Fonts');
+    }
 
     for (const id of [
         'Bold', 'Italic', 'Underline',
@@ -240,8 +264,10 @@ function loadFile(fileTab) {
 
 function startupReady(startupStep) {
   readyList[startupStep] = true;
-  if (Object.values(readyList).indexOf(false) == -1)
+  if (uiReadyPending && Object.values(readyList).indexOf(false) == -1) {
+    uiReadyPending = false;  // ensure ui_ready is posted exactly once per (re)load
     zHT.thrPort.postMessage({cmd: 'ui_ready', fontsList});
+  }
 }
 
 demo();  // launching demo
