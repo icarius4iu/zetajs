@@ -1,9 +1,15 @@
 node_modules/
+# generated output documents (keep the editable template)
 *.pdf
-# generated .docx output (keep the editable template)
+*.odt
+*.rtf
+*.html
+*.txt
+*.doc
 *.docx
 !template.docx
 # scratch test data
 big-invoice.json
 mi-factura.json
 t.json
+bad.json

@@ -1,17 +1,17 @@
 # invoice-backend — headless invoice generation
 
 Generate an invoice **server-side** from a JSON data object — no browser, no UI.
-Two methods are included, mirroring the two ways to think about reporting:
+Two methods are included:
 
 | | **Method A — code-defined** | **Method B — template-driven** |
 |---|---|---|
 | Tool | [pdfmake](https://pdfmake.org/) | [docxtemplater](https://docxtemplater.com/) + LibreOffice |
 | The "document" is | a JS object in code | a `.docx` file with `{tags}` |
-| Output | **PDF** | `.docx` → **PDF** |
-| Needs LibreOffice? | ❌ no | ✅ yes (for the PDF step) |
+| Output | **PDF** | **pdf / odt / docx / doc / rtf / html / txt** |
+| Needs LibreOffice? | ❌ no | ✅ yes (except `docx` output) |
 | Like… | building the doc in code (our zetajs/UNO browser demo) | **iReport / Apryse**: design a template, inject data |
 
-Data format (shared by both):
+Data format (shared):
 
 ```json
 {
@@ -27,8 +27,8 @@ Data format (shared by both):
 ## Requirements
 
 - **Node.js ≥ 22.6** — the `.ts` files run directly (Node strips the types, no build). Tested on Node 24.
-- For **Method B only**: a headless **LibreOffice** (`soffice` on the PATH).
-  Debian/Ubuntu: `sudo apt-get install -y --no-install-recommends libreoffice-writer`
+- **Method B** (and any non-`docx` output) needs a headless **LibreOffice** (`soffice` on PATH):
+  `sudo apt-get install -y --no-install-recommends libreoffice-writer`
 
 ```sh
 npm install
@@ -36,45 +36,50 @@ npm install
 
 ## Method A — pdfmake (JSON → PDF, no LibreOffice)
 
-The document is defined in code ([src/invoice.ts](src/invoice.ts), the `docDefinition`
-object) and pdfmake draws the PDF directly. pdfmake embeds its own fonts, so there
-are no external dependencies.
+The document is defined in code ([src/invoice.ts](src/invoice.ts)) and pdfmake draws
+the PDF directly (it embeds its own fonts — zero external dependencies).
 
 ```sh
 node src/cli.ts [data.json] [out.pdf]      # default: sample-invoice.json -> invoice.pdf
 ```
 
-```ts
-import { generateInvoice } from './src/invoice.ts';
-const pdf: Buffer = await generateInvoice(data);   // PDF bytes
-```
+A long table flows across pages and the header repeats — 60 items → 2 pages.
 
-A long table flows across pages automatically and the header row repeats
-(`headerRows`) — try 60 items → 2 pages.
+## Method B — template-driven, multi-format, validated
 
-## Method B — template-driven (.docx + LibreOffice → PDF)
-
-The document is a real `.docx` you can design in Word/LibreOffice, containing
-docxtemplater tags: scalars like `{customer}` and a table-row loop
-`{#items} … {/items}`. The pipeline is **template + data → .docx → PDF**:
+A real `.docx` you can design in Word/LibreOffice, with docxtemplater tags:
+`{customer}` scalars and a `{#items} … {/items}` table-row loop. The pipeline is
+**validate → inject → emit the requested format**.
 
 ```sh
-node src/make-template.ts                   # (re)create template.docx with the {tags}
-node src/render-docx.ts [data.json] [base]  # default: sample-invoice.json -> invoice.docx + invoice.pdf
+node src/make-template.ts                       # (re)create template.docx with the {tags}
+node src/render.ts [data.json] [out.<ext>]      # ext picks the format
+#   e.g.
+node src/render.ts sample-invoice.json invoice.pdf
+node src/render.ts sample-invoice.json invoice.odt
+node src/render.ts sample-invoice.json invoice.docx
 ```
 
-- [src/make-template.ts](src/make-template.ts) builds `template.docx` (committed; open
-  it to see/edit the tags — this is the file a non-developer would own).
-- [src/render-docx.ts](src/render-docx.ts) injects the data with docxtemplater
-  (pure JS), then converts the rendered `.docx` to PDF via headless LibreOffice
-  (`soffice --headless --convert-to pdf`).
+- [src/make-template.ts](src/make-template.ts) builds the committed `template.docx`
+  (the file a non-developer would own and edit).
+- [src/render.ts](src/render.ts): validates, injects the data with docxtemplater
+  (pure JS), then — for any format other than `docx` — converts via headless
+  LibreOffice using a **per-run profile**, so concurrent renders never collide on
+  a shared LibreOffice lock.
 
-This is the closest match to **iReport/JasperReports and Apryse**: the layout lives
-in an editable template, not in code.
+### Validation ([src/validate.ts](src/validate.ts))
+
+- **Permitted output formats** (allowlist): `pdf, odt, docx, doc, rtf, html, txt`.
+  Anything else is rejected.
+- **Input data**: `customer` / `number` / `date` required non-empty; `items` a
+  non-empty array; each item needs a `desc` and numeric `qty`/`price ≥ 0`. Errors
+  are reported together, e.g. `items[0].price must be a number >= 0.`
+- **Growth bound**: at most `MAX_ITEMS` (5000) line items, so a runaway payload
+  can't exhaust the machine.
 
 ## Expose it as an HTTP service
 
-Either method is a few lines behind an endpoint:
+Either method is a few lines behind an endpoint (validate, then return the bytes):
 
 ```ts
 import { createServer } from 'node:http';
@@ -82,15 +87,23 @@ import { generateInvoice } from './src/invoice.ts';   // Method A
 
 createServer(async (req, res) => {
   let body = ''; for await (const c of req) body += c;
-  const pdf = await generateInvoice(JSON.parse(body));
-  res.setHeader('Content-Type', 'application/pdf');
-  res.end(pdf);
+  try {
+    const pdf = await generateInvoice(JSON.parse(body));
+    res.setHeader('Content-Type', 'application/pdf');
+    res.end(pdf);
+  } catch (e) {
+    res.statusCode = 400; res.end(String((e as Error).message));
+  }
 }).listen(3000);
-// curl -X POST --data-binary @sample-invoice.json localhost:3000 -o invoice.pdf
 ```
 
 ## Which to use?
 
-- **Method A** when the layout is fixed and you want zero infra (no LibreOffice) and PDF out.
-- **Method B** when non-developers should own the layout (edit a `.docx`), or you need
-  the exact LibreOffice rendering / DOCX + PDF output.
+- **Method A** when the layout is fixed and you want zero infra (no LibreOffice), PDF only.
+- **Method B** when non-developers own the layout (edit a `.docx`) and/or you need
+  multiple validated output formats (ODT, DOCX, PDF, …).
+
+> Note: a full multi-format **template** engine (ODT/XLSX templates too) such as
+> [carbone](https://carbone.io/) is the natural next step, but it drives LibreOffice
+> through a Python-UNO bridge that this minimal container doesn't ship; it works on a
+> standard server with `python3-uno` set up against the system Python.
