@@ -1,0 +1,10 @@
+{
+  "customer": "Arthur Dent",
+  "number": "INV-2026-0042",
+  "date": "2026-06-20",
+  "items": [
+    { "desc": "Babel fish (pair)", "qty": 2, "price": 19.99 },
+    { "desc": "Towel, deluxe", "qty": 1, "price": 42.00 },
+    { "desc": "Pan-Galactic Gargle Blaster", "qty": 3, "price": 7.50 }
+  ]
+}

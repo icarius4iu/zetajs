@@ -1,0 +1,13 @@
+{
+  "name": "invoice-backend",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Headless invoice PDF generation (JSON -> PDF) with pdfmake. No UI, no browser, no LibreOffice.",
+  "scripts": {
+    "gen": "node src/cli.ts"
+  },
+  "dependencies": {
+    "pdfmake": "^0.2.10"
+  }
+}
