@@ -75,6 +75,15 @@ function demo() {
         zHT.thrPort.postMessage({cmd: 'load_error', message: String((err && err.message) || err)});
       }
       break;
+    case 'generateInvoice':
+      try {
+        generateInvoice(e.data.data);
+        zHT.thrPort.postMessage({cmd: 'resizeEvt'});  // nudge the canvas to repaint
+      } catch (err) {
+        console.error('generateInvoice failed:', err);
+        zHT.thrPort.postMessage({cmd: 'invoice_error', message: String((err && err.message) || err)});
+      }
+      break;
     case 'toggleFormat':
       const params = [];
       const value = e.data.value;
@@ -157,6 +166,60 @@ function tableToHtml() {
     row_10 += 1;
   }
   zHT.thrPort.postMessage({cmd: 'addrData', data});
+}
+
+
+// Build an invoice from a plain data object: scalar header fields plus a
+// dynamically sized Writer text table (one row per item) and a totals row.
+// This is the "report engine" core - data in, document out, all via UNO.
+function generateInvoice(data) {
+  const xText = letterXModel.getText();
+  xText.setString('');                       // clear the document body
+  const cursor = xText.createTextCursor();
+
+  // Title.
+  cursor.setPropertyValue('CharWeight', css.awt.FontWeight.BOLD);
+  cursor.setPropertyValue('CharHeight', 20);
+  xText.insertString(cursor, 'INVOICE', false);
+  xText.insertControlCharacter(cursor, css.text.ControlCharacter.PARAGRAPH_BREAK, false);
+
+  // Scalar header fields.
+  cursor.setPropertyValue('CharWeight', css.awt.FontWeight.NORMAL);
+  cursor.setPropertyValue('CharHeight', 12);
+  for (const line of ['Bill to: ' + data.customer,
+                      'Invoice #: ' + data.number,
+                      'Date: ' + data.date]) {
+    xText.insertString(cursor, line, false);
+    xText.insertControlCharacter(cursor, css.text.ControlCharacter.PARAGRAPH_BREAK, false);
+  }
+  xText.insertControlCharacter(cursor, css.text.ControlCharacter.PARAGRAPH_BREAK, false);
+
+  // Dynamic items table: header row + one row per item + a totals row.
+  const headers = ['Description', 'Qty', 'Unit price', 'Amount'];
+  const items = data.items || [];
+  const table = letterXModel.createInstance('com.sun.star.text.TextTable');
+  table.initialize(items.length + 2, headers.length);
+  xText.insertTextContent(cursor, table, false);
+
+  const colName = (c) => String.fromCharCode(65 + c);  // 0 -> 'A', 1 -> 'B', ...
+  headers.forEach((h, c) => table.getCellByName(colName(c) + '1').setString(h));
+
+  let total = 0;
+  items.forEach((it, i) => {
+    const qty = Number(it.qty) || 0;
+    const price = Number(it.price) || 0;
+    const amount = qty * price;
+    total += amount;
+    const row = i + 2;  // row 1 is the header
+    table.getCellByName('A' + row).setString(String(it.desc));
+    table.getCellByName('B' + row).setString(String(qty));
+    table.getCellByName('C' + row).setString(price.toFixed(2));
+    table.getCellByName('D' + row).setString(amount.toFixed(2));
+  });
+
+  const totalRow = items.length + 2;
+  table.getCellByName('A' + totalRow).setString('TOTAL');
+  table.getCellByName('D' + totalRow).setString(total.toFixed(2));
 }
 
 

@@ -77,6 +77,11 @@ export default {
                   <!-- size: Somehow needs about 3 rows more space when deployed on the website. -->
                   <select class="form-select" id="addrName" size="13" autofocus disabled></select>
                 </div>
+                <div id="invoiceCell">
+                  <h4 class="mt-3">Invoice (demo)</h4>
+                  <button class="btn btn-success btn-sm" id="btnInvoice" onclick="btnGenerateInvoice()"
+                    disabled>Generate invoice</button>
+                </div>
               </div>
             </div>
 

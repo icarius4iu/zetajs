@@ -22,8 +22,22 @@ const btnUpload = document.getElementById('btnUpload');
 const btnReload = document.getElementById('btnReload');
 const btnInsert = document.getElementById('btnInsert');
 const addrName = document.getElementById('addrName');
+const invoiceCell = document.getElementById('invoiceCell');
+const btnInvoice = document.getElementById('btnInvoice');
 const disabledElementsAry =
-  [btnLetter, btnTable, btnUpload, btnReload, btnInsert, addrName];
+  [btnLetter, btnTable, btnUpload, btnReload, btnInsert, addrName, btnInvoice];
+
+// Sample data for the invoice demo (edit freely to try different data).
+const SAMPLE_INVOICE = {
+  customer: 'Arthur Dent',
+  number: 'INV-2026-0042',
+  date: '2026-06-20',
+  items: [
+    {desc: 'Babel fish (pair)', qty: 2, price: 19.99},
+    {desc: 'Towel, deluxe', qty: 1, price: 42.00},
+    {desc: 'Pan-Galactic Gargle Blaster', qty: 3, price: 7.50},
+  ],
+};
 const canvas_height = parseInt(canvas.style.height);
 const canvas_width = parseInt(canvas.style.width);
 
@@ -71,6 +85,7 @@ window.btnSwitchTab = (tab) => {  // window....: make it accessible to vue.js
     lblUpload.classList.add('btn-light');
     btnInsert.disabled = false;
     addrNameCell.style.display = null;
+    invoiceCell.style.display = null;
     addrName.style.visibility = null;
     btnReload.classList.remove('mt-2');
     btnReload.classList.add('ms-2');
@@ -90,6 +105,7 @@ window.btnSwitchTab = (tab) => {  // window....: make it accessible to vue.js
     lblUpload.classList.remove('btn-light');
     btnInsert.disabled = true;
     addrNameCell.style.display = 'none';
+    invoiceCell.style.display = 'none';
     addrName.style.visibility = 'hidden';
     btnReload.classList.remove('ms-2');
     btnReload.classList.add('mt-2');
@@ -141,6 +157,11 @@ window.btnInsertFunc = () => {  // window....: make it accessible to vue.js
     const recipient = data[addrName.selectedIndex];
     zHM.thrPort.postMessage({cmd: 'insertAddress', recipient});
   }
+}
+
+window.btnGenerateInvoice = () => {  // window....: make it accessible to vue.js
+  // Hand the data model to the office thread, which builds the document from it.
+  zHM.thrPort.postMessage({cmd: 'generateInvoice', data: SAMPLE_INVOICE});
 }
 
 
@@ -217,6 +238,10 @@ zHM.start(() => {
     case 'load_error':
       showLoadError('The document could not be loaded'
         + (e.data.message ? ': ' + e.data.message : '.'));
+      break;
+    case 'invoice_error':
+      console.error('Invoice generation failed:', e.data.message);
+      window.alert('Invoice generation failed: ' + e.data.message);
       break;
     case 'resizeEvt':
       window.dispatchEvent(new Event('resize'));
