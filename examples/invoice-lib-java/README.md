@@ -11,17 +11,17 @@ reusable for any report.
 
 ```
 data ──► build a Document (Blocks) ──► Renderer ──► bytes
-         (com.example.docgen)          PdfRenderer / HtmlRenderer
+         (io.github.icarius4iu.docgen)          PdfRenderer / HtmlRenderer
 ```
 
-- **`com.example.docgen`** — the engine:
+- **`io.github.icarius4iu.docgen`** — the engine:
   - `Document` + `Block` (sealed): `Heading`, `Text`, `Spacer`, `PageBreak`,
     `BulletList`, `Table`.
   - `Column<T>` + `Block.Table.of(columns, data, summary)` — **generic data
     binding**: any `List<T>` becomes a table by describing its columns.
   - `Renderer` interface, with `PdfRenderer` (OpenPDF as the drawing primitive)
     and `HtmlRenderer` (pure Java, zero dependencies). Add a format → add a renderer.
-- **`com.example.invoice`** — a consumer: `InvoiceGenerator` builds a `Document`
+- **`io.github.icarius4iu.invoice`** — a consumer: `InvoiceGenerator` builds a `Document`
   and renders it to PDF or HTML.
 
 ## Requirements
@@ -31,15 +31,31 @@ data ──► build a Document (Blocks) ──► Renderer ──► bytes
 ## Build & test
 
 ```sh
-mvn package      # compiles, runs the JUnit tests, builds target/invoice-lib.jar
+mvn package      # compiles, runs the JUnit tests, builds the jars
 ```
+
+Produces two jars:
+- `target/invoice-lib.jar` — the **library** (thin; openpdf + jackson come via the POM)
+- `target/invoice-lib-cli.jar` — a **runnable** fat jar for the CLI below
 
 ## CLI
 
 ```sh
-java -jar target/invoice-lib.jar [data.json] [out.pdf|out.html]
-java -jar target/invoice-lib.jar sample-invoice.json invoice.pdf
-java -jar target/invoice-lib.jar sample-invoice.json invoice.html
+java -jar target/invoice-lib-cli.jar [data.json] [out.pdf|out.html]
+java -jar target/invoice-lib-cli.jar sample-invoice.json invoice.pdf
+java -jar target/invoice-lib-cli.jar sample-invoice.json invoice.html
+```
+
+## Use as a Maven dependency
+
+Once published to Maven Central (see [RELEASING.md](RELEASING.md)):
+
+```xml
+<dependency>
+  <groupId>io.github.icarius4iu</groupId>
+  <artifactId>invoice-lib</artifactId>
+  <version>0.1.0</version>
+</dependency>
 ```
 
 ## As a library — the engine is generic
@@ -47,7 +63,7 @@ java -jar target/invoice-lib.jar sample-invoice.json invoice.html
 Bind any list to a report, render to any format:
 
 ```java
-import com.example.docgen.*;
+import io.github.icarius4iu.docgen.*;
 import java.util.List;
 
 record Person(String name, int age) {}
@@ -66,7 +82,7 @@ byte[] html = new HtmlRenderer().render(report);
 ```
 
 The invoice does exactly this — see
-[InvoiceGenerator](src/main/java/com/example/invoice/InvoiceGenerator.java).
+[InvoiceGenerator](src/main/java/io/github/icarius4iu/invoice/InvoiceGenerator.java).
 
 ## What it demonstrates
 

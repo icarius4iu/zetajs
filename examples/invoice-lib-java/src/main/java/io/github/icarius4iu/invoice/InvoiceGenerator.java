@@ -1,12 +1,12 @@
 // SPDX-License-Identifier: MIT
-package com.example.invoice;
+package io.github.icarius4iu.invoice;
 
-import com.example.docgen.Align;
-import com.example.docgen.Block;
-import com.example.docgen.Column;
-import com.example.docgen.Document;
-import com.example.docgen.HtmlRenderer;
-import com.example.docgen.PdfRenderer;
+import io.github.icarius4iu.docgen.Align;
+import io.github.icarius4iu.docgen.Block;
+import io.github.icarius4iu.docgen.Column;
+import io.github.icarius4iu.docgen.Document;
+import io.github.icarius4iu.docgen.HtmlRenderer;
+import io.github.icarius4iu.docgen.PdfRenderer;
 
 import java.util.List;
 import java.util.Locale;

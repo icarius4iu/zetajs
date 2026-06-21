@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-package com.example.docgen;
+package io.github.icarius4iu.docgen;
 
 /**
  * Turns a {@link Document} into bytes of some concrete format. Add a new output

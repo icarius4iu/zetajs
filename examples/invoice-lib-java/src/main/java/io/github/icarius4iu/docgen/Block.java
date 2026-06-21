@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-package com.example.docgen;
+package io.github.icarius4iu.docgen;
 
 import java.util.List;
 

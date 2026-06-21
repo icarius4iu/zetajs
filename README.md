@@ -85,8 +85,8 @@ The heavy `soffice.{js,wasm,data}` binaries are **fetched at runtime from a base
     │   ├── template.docx  sample-invoice.json  package.json
     │   └── README.md
     └── invoice-lib-java/             Maven Java library (our own docgen engine)
-        ├── src/main/java/com/example/docgen/   Document, Block, Column, Renderer, Pdf/HtmlRenderer
-        ├── src/main/java/com/example/invoice/  Invoice, Item, InvoiceGenerator, Main (CLI)
+        ├── src/main/java/io/github/icarius4iu/docgen/   Document, Block, Column, Renderer, Pdf/HtmlRenderer
+        ├── src/main/java/io/github/icarius4iu/invoice/  Invoice, Item, InvoiceGenerator, Main (CLI)
         ├── pom.xml  sample-invoice.json
         └── README.md
 ```

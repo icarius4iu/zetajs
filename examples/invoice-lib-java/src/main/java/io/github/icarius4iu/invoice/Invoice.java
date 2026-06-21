@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-package com.example.invoice;
+package io.github.icarius4iu.invoice;
 
 import java.util.List;
 

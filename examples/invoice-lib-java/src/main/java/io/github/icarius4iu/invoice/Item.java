@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-package com.example.invoice;
+package io.github.icarius4iu.invoice;
 
 /** A single invoice line item. */
 public record Item(String desc, double qty, double price) {
