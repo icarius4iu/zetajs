@@ -20,6 +20,7 @@ loaded) see the [root README](../../README.md).
   placeholder fields.
 - **Upload / Reload** — load a new `.odt`/`.ods` into the active tab, or reload the current file.
 - **Download** — export the letter as **ODT** or **PDF**.
+- **Invoice generator (demo)** — the *Invoice (demo)* panel turns an **editable JSON** data model (or an **imported CSV** of `desc,qty,price`) into a generated document right in the canvas: a heading, scalar fields, and a dynamic, paginating items table with a computed total — all built in the office thread via UNO. Export it with the same ODT/PDF buttons. It is **data-driven**: edit the JSON / import a CSV and regenerate, not limited to a fixed sample.
 
 ## Prerequisites
 

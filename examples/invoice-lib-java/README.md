@@ -1,5 +1,7 @@
 # invoice-lib-java — our own document-generation engine (Java / Maven)
 
+> Part of the [zetajs fork](../../README.md) — the Java counterpart of the Node [invoice-backend](../invoice-backend/).
+
 A small, **in-house** document-generation library (no JasperReports): a
 format-independent document model + pluggable renderers, with generic data
 binding. The invoice is just a *consumer* of the engine — the engine itself is

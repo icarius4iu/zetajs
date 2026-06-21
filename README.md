@@ -1,8 +1,18 @@
-# zetajs — Letter Address Vue.js 3 demo
+# zetajs — Letter Address demo + document-generation experiments
 
-A slimmed fork of [allotropia/zetajs](https://github.com/allotropia/zetajs), focused on the **Letter Address Vue.js 3** demo. It embeds ZetaOffice (LibreOffice compiled to WebAssembly) into the browser and drives it through the LibreOffice UNO API via the [zetajs](source/) bridge, with no surrounding LibreOffice menubars, toolbars, or side panels.
+A slimmed fork of [allotropia/zetajs](https://github.com/allotropia/zetajs). It started from the **Letter Address Vue.js 3** demo — which embeds ZetaOffice (LibreOffice compiled to WebAssembly) into the browser and drives it through the LibreOffice UNO API via the [zetajs](source/) bridge — and now also includes headless **document-generation** experiments (a Node backend and a Java library).
 
-The library code under [`source/`](source/) (`zeta.js`, `zetaHelper.ts`, and the committed compiled `zetaHelper.js`) is retained because the demo depends on it. The only example in this fork is `letter-address-vuejs3`.
+The library code under [`source/`](source/) (`zeta.js`, `zetaHelper.ts`, and the committed compiled `zetaHelper.js`) is retained because the browser demo depends on it.
+
+## Projects
+
+| Project | What it is |
+|---|---|
+| [examples/letter-address-vuejs3](examples/letter-address-vuejs3/) | The **browser demo**: a Vue 3 + LibreOffice-WASM form-letter editor, plus an in-browser **invoice generator** (editable JSON / CSV import → live ODT/PDF). |
+| [examples/invoice-backend](examples/invoice-backend/) | Headless **Node/TS**: JSON → PDF (pdfmake), and a `.docx` template → validated multi-format output (docxtemplater + LibreOffice). No browser, no UI. |
+| [examples/invoice-lib-java](examples/invoice-lib-java/) | A **Maven Java** library built on our own `docgen` engine (a document model + PDF and HTML renderers, with generic data binding). |
+
+All three are **data-driven**: they generate from external data (JSON / CSV / an editable form), not from a fixed sample. The rest of this file documents the **letter-address browser demo**; the backend and the Java library have their own READMEs (linked above).
 
 ## Online demo
 
@@ -26,6 +36,7 @@ User-facing features:
 - **Recipient insertion** — recipient names read from the address spreadsheet populate a list box; selecting one and clicking **Insert Address** fills the letter's placeholder fields (`<Recipient's Title>`, `<Recipient's name>`, street, postal code, city, state). The sender fields are hard-coded in the demo.
 - **Upload / Reload** — upload a new `.odt` (letter) or `.ods` (table) into the active tab, or reload the current file.
 - **Download** — export the letter as **ODT** (LibreOffice `writer8` filter) or **PDF** (`writer_pdf_Export` filter), offered to the browser as `letter.odt` / `letter.pdf`.
+- **Invoice generator (demo)** — a "Generate invoice" panel builds a document from an **editable JSON** data model (or an **imported CSV**): a heading, scalar fields, and a dynamically sized, paginating items table with a computed total, all built in the office thread via UNO. Demonstrates data-driven document generation in the browser; export it as ODT/PDF like the letter.
 
 Typical flow: page loads → spinner while the runtime and both documents load → UI becomes ready (tabs, toolbar, upload, reload, recipient list, and Insert button enable) → edit and format the letter → pick a recipient and insert the address → switch tabs, upload/reload, or download.
 
@@ -59,25 +70,25 @@ The heavy `soffice.{js,wasm,data}` binaries are **fetched at runtime from a base
 │   └── zetaHelper.js                  compiled helper (committed)
 └── examples/
     ├── .gitignore                    ignores */config.js
-    └── letter-address-vuejs3/        the demo
-        ├── README.md
-        ├── index.html
-        ├── package.json
-        ├── vite.config.js
-        ├── jsconfig.json
-        ├── public/
-        │   ├── pre_soffice.js         main-thread controller
-        │   ├── office_thread.js       office-thread (Web Worker) logic
-        │   ├── config.sample.js       copy to config.js to override the soffice base URL
-        │   ├── letter.odt             Writer form letter
-        │   ├── table.ods              Calc address table
-        │   ├── favicon.ico
-        │   └── assets/vendor/zetajs/  symlinks -> ../../../../../../source/{zeta,zetaHelper}.js
-        └── src/
-            ├── main.js
-            ├── App.vue
-            ├── components/ControlBar.vue
-            └── assets/{base,main}.css
+    ├── letter-address-vuejs3/        the browser demo (Vue 3 + LibreOffice WASM)
+    │   ├── index.html  package.json  vite.config.js  jsconfig.json  README.md
+    │   ├── public/
+    │   │   ├── pre_soffice.js         main-thread controller
+    │   │   ├── office_thread.js       office-thread (Web Worker) logic + invoice generator
+    │   │   ├── config.sample.js       copy to config.js to override the soffice base URL
+    │   │   ├── letter.odt / table.ods documents loaded into the canvas
+    │   │   └── assets/vendor/zetajs/  symlinks -> ../../../../../../source/{zeta,zetaHelper}.js
+    │   └── src/                       main.js, App.vue, components/ControlBar.vue, assets/*.css
+    ├── invoice-backend/              headless Node/TS invoice generation
+    │   ├── src/invoice.ts + cli.ts    Method A: JSON -> PDF (pdfmake)
+    │   ├── src/render.ts + validate.ts  Method B: .docx template -> validated multi-format
+    │   ├── template.docx  sample-invoice.json  package.json
+    │   └── README.md
+    └── invoice-lib-java/             Maven Java library (our own docgen engine)
+        ├── src/main/java/com/example/docgen/   Document, Block, Column, Renderer, Pdf/HtmlRenderer
+        ├── src/main/java/com/example/invoice/  Invoice, Item, InvoiceGenerator, Main (CLI)
+        ├── pom.xml  sample-invoice.json
+        └── README.md
 ```
 
 ## Prerequisites

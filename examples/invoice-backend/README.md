@@ -1,5 +1,7 @@
 # invoice-backend — headless invoice generation
 
+> Part of the [zetajs fork](../../README.md) — the headless counterpart of the in-browser invoice demo in [letter-address-vuejs3](../letter-address-vuejs3/).
+
 Generate an invoice **server-side** from a JSON data object — no browser, no UI.
 Two methods are included:
 
