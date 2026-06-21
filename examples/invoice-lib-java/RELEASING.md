@@ -65,9 +65,11 @@ mvn -Prelease deploy
 ```
 
 This builds + tests, attaches the sources and javadoc jars, signs everything,
-uploads to the Central Portal, and (because `autoPublish=true`) publishes it.
-It appears on <https://central.sonatype.com> immediately and on
-<https://search.maven.org> within ~10–30 minutes.
+and uploads to the Central Portal. Because `autoPublish=false`, it stops at a
+**validated** deployment — open the **Deployments** tab at
+<https://central.sonatype.com>, review it, and click **Publish** to release it
+(this step is permanent). It then syncs to <https://search.maven.org> within
+~10–30 minutes.
 
 ## 5. Cut the next version
 
